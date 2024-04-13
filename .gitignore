@@ -1,160 +1,188 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+import tkinter as tk
+from tkinter import ttk
+from tkinter import filedialog, messagebox
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import padding
+import datetime
+import os  # Импортируем модуль os для работы с файлами
 
-# C extensions
-*.so
+class CertificateApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Генератор Сертификатов")
+        self.root.geometry("400x400")
+          
+          
+        self.root.config(bg='lightblue')
+        
+        self.create_inputs()
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+        self.generate_certificate_button = ttk.Button(root, text="Создать Сертификат", command=self.generate_certificate, style="Primary.TButton")
+        self.generate_certificate_button.place(x=7, y=250)
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+        self.generate_signature_button = ttk.Button(root, text="Создать Цифровую Подпись", command=self.generate_signature, style="Secondary.TButton")
+        self.generate_signature_button.place(x=175, y=250)
+        
+        self.open_certificate_button = ttk.Button(root, text="Открыть Сертификат", command=self.open_certificate, style="Quaternary.TButton")
+        self.open_certificate_button.place(x=7, y=300)
+        
+        self.generate_private_key_button = ttk.Button(root, text="Создать Закрытый Ключ", command=self.generate_private_key, style="Tertiary.TButton")
+        self.generate_private_key_button.place(x=175, y=300)
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+        
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
+        self.style = ttk.Style()
+        self.style.configure("Primary.TButton", foreground="blue", background="blue", font=("Helvetica", 12))
+        self.style.configure("Secondary.TButton", foreground="green", background="green", font=("Helvetica", 12))
+        self.style.configure("Tertiary.TButton", foreground="red", background="red", font=("Helvetica", 12))
+        self.style.configure("Quaternary.TButton", foreground="purple", background="purple", font=("Helvetica", 12))
+        
+        self.style.configure("TEntry", foreground="green", background="blue")
+    def create_inputs(self):
+        self.inputs = {}
 
-# Translations
-*.mo
-*.pot
+        labels = [
+            "Страна (C):",
+            "Область (ST):",
+            "Населенный пункт (L):",
+            "Организация (O):",
+            "Подразделение (OU):",
+            "Общее Имя (CN):",
+            "Адрес электронной почты (EMAIL):",
+            "Название сертификата:"
+        ]
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+        for label_text in labels:
+            label_frame = ttk.Frame(self.root)
+            label_frame.pack(fill="x", padx=10, pady=(5, 0))
 
-# Flask stuff:
-instance/
-.webassets-cache
+            label = ttk.Label(label_frame, text=label_text)
+            label.pack(side="left", padx=(0, 10))
 
-# Scrapy stuff:
-.scrapy
+            input_var = tk.StringVar()
+            input_entry = ttk.Entry(label_frame, textvariable=input_var, width=30)
+            input_entry.pack(side="right")
 
-# Sphinx documentation
-docs/_build/
+            # Используйте первую часть текста метки (до двоеточия) в качестве ключа, кроме названия сертификата
+            key = label_text.split(":")[0].strip()
+            if key == "Название сертификата":
+                key = "certificate_name"
+            self.inputs[key] = input_var
 
-# PyBuilder
-.pybuilder/
-target/
+    def generate_certificate(self):
+        # Получаем название сертификата от пользователя
+        certificate_name = self.inputs["certificate_name"].get()
 
-# Jupyter Notebook
-.ipynb_checkpoints
+        subject_attributes = [
+            x509.NameAttribute(x509.NameOID.COUNTRY_NAME, self.inputs["Страна (C)"].get()),
+            x509.NameAttribute(x509.NameOID.STATE_OR_PROVINCE_NAME, self.inputs["Область (ST)"].get()),
+            x509.NameAttribute(x509.NameOID.LOCALITY_NAME, self.inputs["Населенный пункт (L)"].get()),
+            x509.NameAttribute(x509.NameOID.ORGANIZATION_NAME, self.inputs["Организация (O)"].get()),
+            x509.NameAttribute(x509.NameOID.ORGANIZATIONAL_UNIT_NAME, self.inputs["Подразделение (OU)"].get()),
+            x509.NameAttribute(x509.NameOID.COMMON_NAME, self.inputs["Общее Имя (CN)"].get()),
+            x509.NameAttribute(x509.NameOID.EMAIL_ADDRESS, self.inputs["Адрес электронной почты (EMAIL)"].get())
+        ]
 
-# IPython
-profile_default/
-ipython_config.py
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
 
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
+        subject = x509.Name(subject_attributes)
+        csr = x509.CertificateSigningRequestBuilder().subject_name(subject).sign(
+            private_key, hashes.SHA256(), default_backend()
+        )
 
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
+        issuer = subject
+        builder = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(private_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.datetime.now())
+            .not_valid_after(datetime.datetime(2025, 3, 15))
+            .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        )
 
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
+        certificate = builder.sign(
+            private_key=private_key, algorithm=hashes.SHA256(), backend=default_backend()
+        )
 
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
-#   https://pdm.fming.dev/#use-with-ide
-.pdm.toml
+        # Используем введенное название сертификата для именования файлов
+        cert_file_name = certificate_name + ".crt"
+        key_file_name = certificate_name + ".key"
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
+        cert_bytes = certificate.public_bytes(serialization.Encoding.PEM)
+        private_key_bytes = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption()
+        )
 
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
+        with open(cert_file_name, "wb") as cert_file:
+            cert_file.write(cert_bytes)
 
-# SageMath parsed files
-*.sage.py
+        with open(key_file_name, "wb") as key_file:
+            key_file.write(private_key_bytes)
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+        print(f"Сертификат и закрытый ключ успешно созданы: {cert_file_name}, {key_file_name}")
 
-# Spyder project settings
-.spyderproject
-.spyproject
+    def generate_signature(self):
+        message = b"Hello, World!"
+        with open("private_key.key", "rb") as key_file:
+            private_key = serialization.load_pem_private_key(
+                key_file.read(),
+                password=None,
+                backend=default_backend()
+            )
+        signature = private_key.sign(
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+         )
+        
+        with open("signature.pem", "wb") as signature_file:
+            signature_file.write(signature)
+        print("Цифровая подпись успешно создана.")
 
-# Rope project settings
-.ropeproject
+    def generate_private_key(self):
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+        private_key_bytes = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        with open("private_key.key", "wb") as key_file:
+            key_file.write(private_key_bytes)
+        print("Закрытый ключ успешно создан.")
 
-# mkdocs documentation
-/site
+    def open_certificate(self):
+        # Получаем название сертификата от пользователя
+        certificate_name = self.inputs["certificate_name"].get()
+        
+        # Имя файла сертификата, который нужно открыть
+        cert_file_name = certificate_name + ".crt"
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+        # Проверяем, существует ли файл сертификата
+        if os.path.exists(cert_file_name):
+            # Открываем файл сертификата
+            os.startfile(cert_file_name)
+        else:
+            messagebox.showerror("Ошибка", f"Файл сертификата '{cert_file_name}' не найден.")
 
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = CertificateApp(root)
+    root.mainloop()
